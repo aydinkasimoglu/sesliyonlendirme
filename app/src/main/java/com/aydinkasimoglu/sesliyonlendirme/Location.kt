@@ -8,7 +8,6 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -16,9 +15,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -43,6 +44,25 @@ import kotlinx.serialization.json.Json
 lateinit var locationClient: FusedLocationProviderClient
 lateinit var locationCallback: LocationCallback
 val permissions = arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+
+/**
+ * This is a Saver object for saving and restoring Step objects.
+ * It is used to persist the Step object across configuration changes such as screen rotations.
+ */
+val directionsSaver = Saver<Step?, String>(
+    save = {
+        it?.let {
+            Json.encodeToString(Step.serializer(), it)
+        } ?: ""
+    },
+    restore = {
+        if (it.isNotEmpty()) {
+            Json.decodeFromString(Step.serializer(), it)
+        } else {
+            null
+        }
+    }
+)
 
 /**
  * Get directions data from Google Maps Routes API
@@ -110,6 +130,12 @@ fun startLocationUpdates() {
     }
 }
 
+/**
+ * Screen for displaying the location of the user and the navigation instruction
+ *
+ * @param currentLocation The current location as a pair of latitude and longitude
+ * @param data The step data
+ */
 @Composable
 fun DirectionsScreen(currentLocation: Pair<Double, Double>, data: Step?) {
     val context = LocalContext.current
@@ -146,11 +172,11 @@ fun DirectionsScreen(currentLocation: Pair<Double, Double>, data: Step?) {
             elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
         ) {
             Text (
-                text =
-                if (currentLocation == Pair(0.0, 0.0))
+                text = if (currentLocation == Pair(0.0, 0.0))
                     "Konumunuz yükleniyor"
                 else
                     "Konumunuz: ${currentLocation.first}/${currentLocation.second}",
+                style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 12.dp),
             )
         }
@@ -161,7 +187,10 @@ fun DirectionsScreen(currentLocation: Pair<Double, Double>, data: Step?) {
         ) {
             data?.also {
                 it.navigationInstruction?.let { navigationInstruction ->
-                    Text(text = navigationInstruction.instructions)
+                    Text(
+                        text = navigationInstruction.instructions,
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
                 }
             } ?: CircularProgressIndicator (modifier = Modifier.width(45.dp))
         }
