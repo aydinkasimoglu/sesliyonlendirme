@@ -191,7 +191,7 @@ fun Speech(voiceToText: VoiceToText) {
 
         AnimatedContent(targetState = state.isSpeaking) { isSpeaking ->
             Text(
-                text = if (isSpeaking) "Konuşuluyor" else state.spokenText.ifEmpty { "Mikrofona basın" },
+                text = if (isSpeaking) "Konuşuluyor" else state.spokenText.ifEmpty { "Hedef söyleyin" },
                 style = MaterialTheme.typography.bodyLarge
             )
         }
