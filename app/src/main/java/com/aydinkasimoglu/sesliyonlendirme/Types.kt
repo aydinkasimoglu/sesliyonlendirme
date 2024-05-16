@@ -12,10 +12,16 @@ data class Route(val legs: List<Leg> = listOf())
 data class Leg(val steps: List<Step> = listOf())
 
 @Serializable
-data class Step(val navigationInstruction: NavigationInstruction? = null)
+data class Step(val navigationInstruction: NavigationInstruction? = null, val localizedValues: LocalizedValues)
 
 @Serializable
 data class NavigationInstruction(val maneuver: String, val instructions: String)
+
+@Serializable
+data class LocalizedValues(val distance: Value, val staticDuration: Value)
+
+@Serializable
+data class Value(val text: String)
 
 @Serializable
 data class RequestBody(val origin: Origin, val destination: Destination, val travelMode: String, val languageCode: String, val units: String)
