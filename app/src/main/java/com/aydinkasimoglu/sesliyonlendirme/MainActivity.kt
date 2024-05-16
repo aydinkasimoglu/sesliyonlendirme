@@ -13,8 +13,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -37,12 +37,12 @@ class MainActivity : ComponentActivity() {
         locationClient = LocationServices.getFusedLocationProviderClient(this)
 
         setContent {
-            var currentLocation by remember {
+            var currentLocation by rememberSaveable {
                 mutableStateOf(Pair(0.0, 0.0))
             }
 
-            var directionsData by remember {
-                mutableStateOf<Step?>(null)
+            var directionsData by rememberSaveable(stateSaver = directionsSaver) {
+                mutableStateOf(null)
             }
 
             val scope = rememberCoroutineScope()
@@ -74,10 +74,13 @@ class MainActivity : ComponentActivity() {
                     ) {
                         Column {
                             Speech(voiceToText = voiceToText)
-                            
-                            Spacer(modifier = Modifier.height(20.dp))
-                            
-                            DirectionsScreen(currentLocation = currentLocation, data = directionsData)
+
+                            Spacer(modifier = Modifier.height(40.dp))
+
+                            DirectionsScreen(
+                                currentLocation = currentLocation,
+                                data = directionsData
+                            )
                         }
                     }
                 }
