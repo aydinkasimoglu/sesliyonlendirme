@@ -1,6 +1,7 @@
 package com.aydinkasimoglu.sesliyonlendirme
 
 import android.os.Bundle
+import android.speech.tts.TextToSpeech
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Box
@@ -24,6 +25,7 @@ import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
 
@@ -31,10 +33,22 @@ class MainActivity : ComponentActivity() {
         VoiceToText(application)
     }
 
+    private lateinit var textToSpeech: TextToSpeech
+
+    fun speakInstruction(instruction: String) {
+        textToSpeech.speak(instruction, TextToSpeech.QUEUE_FLUSH, null, null)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         locationClient = LocationServices.getFusedLocationProviderClient(this)
+
+        textToSpeech = TextToSpeech(this) { status ->
+            if (status != TextToSpeech.ERROR) {
+                textToSpeech.language = Locale.forLanguageTag("tr-TR")
+            }
+        }
 
         setContent {
             var currentLocation by rememberSaveable {

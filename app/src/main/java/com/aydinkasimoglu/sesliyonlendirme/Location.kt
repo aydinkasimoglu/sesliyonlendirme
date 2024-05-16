@@ -19,7 +19,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableDoubleStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -40,6 +46,7 @@ import io.ktor.client.statement.HttpResponse
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
+import kotlin.math.abs
 
 lateinit var locationClient: FusedLocationProviderClient
 lateinit var locationCallback: LocationCallback
@@ -164,6 +171,19 @@ fun DirectionsScreen(currentLocation: Pair<Double, Double>, data: Step?) {
         }
     }
 
+    // Function to parse distance string to numerical value in meters
+    fun parseDistance(distance: String): Double {
+        val distanceParts = distance.split(" ")
+        val value = distanceParts[0].toDoubleOrNull() ?: 0.0
+        val unit = distanceParts.getOrNull(1)
+
+        return when (unit) {
+            "m" -> value
+            "km" -> value * 1000
+            else -> 0.0
+        }
+    }
+
     Column (
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -185,12 +205,35 @@ fun DirectionsScreen(currentLocation: Pair<Double, Double>, data: Step?) {
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            var previousInstruction by rememberSaveable { mutableStateOf("") }
+            var previousDistance by rememberSaveable { mutableDoubleStateOf(0.0) }
+            var lastSpeakTime by rememberSaveable { mutableLongStateOf(System.currentTimeMillis()) }
+
             data?.also {
                 it.navigationInstruction?.let { navigationInstruction ->
+                    val instruction = navigationInstruction.instructions + ". " + it.localizedValues.distance.text + ". " + it.localizedValues.staticDuration.text
+
+                    // Parse the distance string to get the numerical value in meters
+                    val currentDistance = parseDistance(it.localizedValues.distance.text)
+
                     Text(
-                        text = navigationInstruction.instructions,
+                        text = instruction,
                         style = MaterialTheme.typography.bodyLarge,
                     )
+
+                    val currentTime = System.currentTimeMillis()
+                    val elapsedTimeSinceLastSpeak = currentTime - lastSpeakTime
+
+                    // Check if the navigation instruction has changed
+                    if (navigationInstruction.instructions != previousInstruction ||
+                        abs(currentDistance - previousDistance) >= 100 ||
+                        elapsedTimeSinceLastSpeak >= 30000) {
+
+                        (context as MainActivity).speakInstruction(instruction)
+                        previousInstruction = navigationInstruction.instructions
+                        previousDistance = currentDistance
+                        lastSpeakTime = currentTime
+                    }
                 }
             } ?: CircularProgressIndicator (modifier = Modifier.width(45.dp))
         }
