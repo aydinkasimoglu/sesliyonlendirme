@@ -19,6 +19,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -71,14 +72,18 @@ val directionsSaver = Saver<Step?, String>(
     }
 )
 
+typealias Location = Pair<Double, Double>
+
 /**
- * Get directions data from Google Maps Routes API
+ * This function retrieves the directions data from the Google Routes API.
+ * The function makes a POST request to the Google Directions API with the origin, destination, and other parameters.
+ * The response from the API is parsed into a Step object which contains the navigation instructions.
  *
- * @param origin The origin location as a pair of latitude and longitude
- * @return The first step of the route
+ * @param points A pair of origin and destination locations.
+ * @return The first Step object from the response if the request is successful, null otherwise.
  */
 @OptIn(ExperimentalSerializationApi::class)
-suspend fun getDirectionsData(origin: Pair<Double, Double>): Step? {
+suspend fun getDirectionsFrom(points: Pair<Location, Location>): Step? {
     val client = HttpClient(CIO) {
         install(ContentNegotiation) {
             json(Json {
@@ -92,15 +97,18 @@ suspend fun getDirectionsData(origin: Pair<Double, Double>): Step? {
         }
     }
 
+    val origin = points.first
+    val destination = points.second
+
     val response: HttpResponse = client.post("https://routes.googleapis.com/directions/v2:computeRoutes") {
         url {
             headers.append("Content-Type", "application/json")
-            headers.append("X-Goog-Api-Key", "AIzaSyAlsV41_jlFTFhzWwTLy7TpeioSuggP7Q0")
+            headers.append("X-Goog-Api-Key", BuildConfig.API_KEY)
             headers.append("X-Goog-FieldMask", "routes.legs")
         }
         setBody(RequestBody(
             origin = Origin(RequestLocation(LatLng(origin.first, origin.second))),
-            destination = Destination(RequestLocation(LatLng(40.82408137774701, 29.920700725944666))),
+            destination = Destination(RequestLocation(LatLng(destination.first, destination.second))),
             travelMode = "WALK",
             languageCode = "tr-TR",
             units = "METRIC"
@@ -161,12 +169,15 @@ fun DirectionsScreen(currentLocation: Pair<Double, Double>, data: Step?) {
         }
 
     LaunchedEffect (key1 = launcherMultiplePermissions) {
+        // Check if all the necessary permissions are granted
         if (permissions.all {
                 ActivityCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
             }) {
+            // If the permissions are granted, start the location updates
             startLocationUpdates()
         }
         else {
+            // If the permissions are not granted, launch a request to ask the user for the necessary permissions
             launcherMultiplePermissions.launch(permissions)
         }
     }
@@ -192,7 +203,7 @@ fun DirectionsScreen(currentLocation: Pair<Double, Double>, data: Step?) {
             elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
         ) {
             Text (
-                text = if (currentLocation == Pair(0.0, 0.0))
+                text = if (currentLocation == 0.0 to 0.0)
                     "Konumunuz yükleniyor"
                 else
                     "Konumunuz: ${currentLocation.first}/${currentLocation.second}",
@@ -200,42 +211,55 @@ fun DirectionsScreen(currentLocation: Pair<Double, Double>, data: Step?) {
                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 12.dp),
             )
         }
-        Column (
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            var previousInstruction by rememberSaveable { mutableStateOf("") }
-            var previousDistance by rememberSaveable { mutableDoubleStateOf(0.0) }
-            var lastSpeakTime by rememberSaveable { mutableLongStateOf(System.currentTimeMillis()) }
+        // Checks if the current location is not equal to (0.0, 0.0) which is the default value.
+        // If the current location is not the default value, it means that the location updates have
+        // started and the user's location has been retrieved.
+        if (currentLocation != 0.0 to 0.0) {
+            Column (
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                var previousInstruction by rememberSaveable { mutableStateOf("") }
+                var previousDistance by rememberSaveable { mutableDoubleStateOf(0.0) }
+                var lastSpeakTime by rememberSaveable { mutableLongStateOf(System.currentTimeMillis()) }
+                val voiceState by (context as MainActivity).voiceToText.state.collectAsState()
 
-            data?.also {
-                it.navigationInstruction?.let { navigationInstruction ->
-                    val instruction = navigationInstruction.instructions + ". " + it.localizedValues.distance.text + ". " + it.localizedValues.staticDuration.text
+                data?.also {
+                    it.navigationInstruction?.let { navigationInstruction ->
+                        val instruction = navigationInstruction.instructions + ". " + it.localizedValues.distance.text + ". " + it.localizedValues.staticDuration.text
 
-                    // Parse the distance string to get the numerical value in meters
-                    val currentDistance = parseDistance(it.localizedValues.distance.text)
+                        // Parse the distance string to get the numerical value in meters
+                        val currentDistance = parseDistance(it.localizedValues.distance.text)
 
-                    Text(
-                        text = instruction,
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
+                        Text(
+                            text = instruction,
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
 
-                    val currentTime = System.currentTimeMillis()
-                    val elapsedTimeSinceLastSpeak = currentTime - lastSpeakTime
+                        val currentTime = System.currentTimeMillis()
+                        val elapsedTimeSinceLastSpeak = currentTime - lastSpeakTime
 
-                    // Check if the navigation instruction has changed
-                    if (navigationInstruction.instructions != previousInstruction ||
-                        abs(currentDistance - previousDistance) >= 100 ||
-                        elapsedTimeSinceLastSpeak >= 30000) {
+                        // Check if the navigation instruction has changed
+                        if ((navigationInstruction.instructions != previousInstruction) ||
+                            (abs(currentDistance - previousDistance) >= 100) ||
+                            (elapsedTimeSinceLastSpeak >= 30000)) {
 
-                        (context as MainActivity).speakInstruction(instruction)
-                        previousInstruction = navigationInstruction.instructions
-                        previousDistance = currentDistance
-                        lastSpeakTime = currentTime
+                            (context as MainActivity).speakInstruction(instruction)
+                            previousInstruction = navigationInstruction.instructions
+                            previousDistance = currentDistance
+                            lastSpeakTime = currentTime
+                        }
                     }
+                } ?: if (voiceState.spokenText.isNotEmpty()) {
+                    CircularProgressIndicator (modifier = Modifier.width(45.dp))
+                } else {
+                    Text (
+                        text = "Hedef bekleniyor",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
                 }
-            } ?: CircularProgressIndicator (modifier = Modifier.width(45.dp))
+            }
         }
     }
 }
