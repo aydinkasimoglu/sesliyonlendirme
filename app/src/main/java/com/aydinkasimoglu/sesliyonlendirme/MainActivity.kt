@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
@@ -29,7 +30,7 @@ import java.util.Locale
 
 class MainActivity : ComponentActivity() {
 
-    private val voiceToText by lazy {
+    val voiceToText by lazy {
         VoiceToText(application)
     }
 
@@ -47,12 +48,13 @@ class MainActivity : ComponentActivity() {
         textToSpeech = TextToSpeech(this) { status ->
             if (status != TextToSpeech.ERROR) {
                 textToSpeech.language = Locale.forLanguageTag("tr-TR")
+                textToSpeech.setSpeechRate(1.3f)
             }
         }
 
         setContent {
             var currentLocation by rememberSaveable {
-                mutableStateOf(Pair(0.0, 0.0))
+                mutableStateOf(0.0 to 0.0)
             }
 
             var directionsData by rememberSaveable(stateSaver = directionsSaver) {
@@ -61,22 +63,30 @@ class MainActivity : ComponentActivity() {
 
             val scope = rememberCoroutineScope()
 
+            val voiceState by voiceToText.state.collectAsState()
+
             locationCallback = object : LocationCallback() {
                 override fun onLocationResult(p0: LocationResult) {
                     super.onLocationResult(p0)
 
-                    for (location in p0.locations) {
-                        currentLocation = Pair(location.latitude, location.longitude)
+                    p0.lastLocation.let { location ->
+                        if (location != null) {
+                            currentLocation = location.latitude to location.longitude
+                        }
                     }
 
-                    scope.launch(Dispatchers.IO) {
-                        directionsData = getDirectionsData(currentLocation)
+                    if (voiceState.spokenText.isNotEmpty()) {
+                        // TODO: Get destination location from the spoken text
+                        val destinationLocation = 40.907186 to 29.170051
+
+                        scope.launch(Dispatchers.IO) {
+                            directionsData = getDirectionsFrom(currentLocation to destinationLocation)
+                        }
                     }
                 }
             }
 
             SesliYonlendirmeTheme {
-                // A surface container using the 'background' color from the theme
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
