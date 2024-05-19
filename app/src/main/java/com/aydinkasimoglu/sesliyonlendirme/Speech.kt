@@ -26,7 +26,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -109,7 +108,7 @@ class VoiceToText(private val app: Application): RecognitionListener {
             return
         }
 
-        _state.update { it.copy(error = error.toString()) }
+        _state.update { it.copy(error = error.toString(), isSpeaking = false) }
     }
 
     override fun onResults(results: Bundle?) {
@@ -131,9 +130,11 @@ class VoiceToText(private val app: Application): RecognitionListener {
 }
 
 /**
- * Composable for converting voice to text
+ * Composable function that provides the UI for the Speech feature.
+ * It includes a Button for starting and stopping the voice to text conversion, and a Text
+ * for displaying the spoken text or a prompt.
  *
- * @param voiceToText The voice to text recognizer
+ * @param voiceToText The VoiceToText object for controlling the voice to text conversion.
  */
 @Composable
 fun Speech(voiceToText: VoiceToText) {
@@ -150,50 +151,46 @@ fun Speech(voiceToText: VoiceToText) {
         recordAudioLauncher.launch(Manifest.permission.RECORD_AUDIO)
     }
 
-    val state by voiceToText.state.collectAsState()
+    if (canRecord) {
+        val state by voiceToText.state.collectAsState()
 
-    Row (
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center,
-    ) {
-        val rotation = remember {
-            Animatable(0f)
-        }
-
-        val painter = remember {
-            mutableIntStateOf(R.drawable.round_mic_24)
-        }
-
-        val scope = rememberCoroutineScope()
-
-        Button(onClick = {
-            scope.launch {
-                if (state.isSpeaking) {
-                    voiceToText.stopListening()
-                    painter.intValue = R.drawable.round_mic_24
-                    rotation.animateTo(0f, animationSpec = tween(500, easing = EaseInOut))
-                } else {
-                    voiceToText.startListening()
-                    painter.intValue = R.drawable.round_stop_24
-                    rotation.animateTo(360f, animationSpec = tween(500, easing = EaseInOut))
-                }
+        Row (
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            val rotation = remember {
+                Animatable(0f)
             }
-        }) {
-            Icon(
-                painter = painterResource(id = painter.intValue),
-                contentDescription = "Record audio icon",
-                modifier = Modifier.rotate(rotation.value)
-            )
-        }
 
-        Spacer(modifier = Modifier.width(15.dp))
+            val scope = rememberCoroutineScope()
 
-        AnimatedContent(targetState = state.isSpeaking) { isSpeaking ->
-            Text(
-                text = if (isSpeaking) "Konuşuluyor" else state.spokenText.ifEmpty { "Hedef söyleyin" },
-                style = MaterialTheme.typography.bodyLarge
-            )
+            Button(onClick = {
+                scope.launch {
+                    if (state.isSpeaking) {
+                        voiceToText.stopListening()
+                        rotation.animateTo(0f, animationSpec = tween(500, easing = EaseInOut))
+                    } else {
+                        voiceToText.startListening()
+                        rotation.animateTo(360f, animationSpec = tween(500, easing = EaseInOut))
+                    }
+                }
+            }) {
+                Icon(
+                    painter = if (state.isSpeaking) painterResource(id = R.drawable.round_stop_24) else painterResource(id = R.drawable.round_mic_24),
+                    contentDescription = "Record audio icon",
+                    modifier = Modifier.rotate(rotation.value)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(15.dp))
+
+            AnimatedContent(targetState = state.isSpeaking) { isSpeaking ->
+                Text(
+                    text = if (isSpeaking) "Konuşuluyor" else state.spokenText.ifEmpty { "Hedef söyleyin" },
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
         }
     }
 }
