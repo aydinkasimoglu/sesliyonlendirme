@@ -1,16 +1,17 @@
 [versions]
 agp = "8.4.0"
 kotlin = "1.9.0"
-coreKtx = "1.12.0"
+coreKtx = "1.13.1"
 junit = "4.13.2"
 junitVersion = "1.1.5"
 espressoCore = "3.5.1"
 kotlinxSerializationJson = "1.6.3"
-lifecycleRuntimeKtx = "2.7.0"
-activityCompose = "1.8.2"
-composeBom = "2024.04.00"
+lifecycleRuntimeKtx = "2.8.0"
+activityCompose = "1.9.0"
+composeBom = "2024.05.00"
 ktor = "2.3.9"
 playServicesLocation = "21.2.0"
+secretsGradlePlugin = "2.0.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -33,6 +34,7 @@ ktor-client-content-negotiation = { group = "io.ktor", name = "ktor-client-conte
 ktor-serialization-kotlinx-json = { group = "io.ktor", name = "ktor-serialization-kotlinx-json", version.ref = "ktor" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
 play-services-location = { module = "com.google.android.gms:play-services-location", version.ref = "playServicesLocation" }
+secrets-gradle-plugin = { module = "com.google.android.libraries.mapsplatform.secrets-gradle-plugin:secrets-gradle-plugin", version.ref = "secretsGradlePlugin" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

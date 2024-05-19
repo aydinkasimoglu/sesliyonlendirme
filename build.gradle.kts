@@ -4,3 +4,9 @@ plugins {
     alias(libs.plugins.jetbrainsKotlinAndroid) apply false
     kotlin("jvm") version "1.9.0"
 }
+
+buildscript {
+    dependencies {
+        classpath(libs.secrets.gradle.plugin)
+    }
+}
