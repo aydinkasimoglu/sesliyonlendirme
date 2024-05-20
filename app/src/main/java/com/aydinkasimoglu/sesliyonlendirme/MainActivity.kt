@@ -26,6 +26,7 @@ import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.net.URLEncoder
 import java.util.Locale
 
 class MainActivity : ComponentActivity() {
@@ -76,11 +77,13 @@ class MainActivity : ComponentActivity() {
                     }
 
                     if (voiceState.spokenText.isNotEmpty()) {
-                        // TODO: Get destination location from the spoken text
-                        val destinationLocation = 40.907186 to 29.170051
-
                         scope.launch(Dispatchers.IO) {
-                            directionsData = getDirectionsFrom(currentLocation to destinationLocation)
+                            val destinationLocation = getLocationFrom(URLEncoder.encode(voiceState.spokenText, "UTF-8"))
+                            if (destinationLocation != null){
+                                val destination = destinationLocation.lat to destinationLocation.lng
+                                directionsData = getDirectionsFrom(currentLocation to destination)
+                            }
+
                         }
                     }
                 }

@@ -37,3 +37,15 @@ data class RequestLocation(val latLng: LatLng)
 
 @Serializable
 data class LatLng(val latitude: Double, val longitude: Double)
+//========
+@Serializable
+data class LocationData(val results: List<Result> = listOf())
+
+@Serializable
+data class Result(val geometry: Geometry)
+
+@Serializable
+data class Geometry(val location: GeometryLocation)
+
+@Serializable
+data class GeometryLocation(val lat: Double, val lng: Double)

@@ -41,6 +41,7 @@ import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
@@ -73,6 +74,32 @@ val directionsSaver = Saver<Step?, String>(
 )
 
 typealias Location = Pair<Double, Double>
+
+@OptIn(ExperimentalSerializationApi::class)
+suspend fun getLocationFrom(location: String) : GeometryLocation? {
+    val client = HttpClient(CIO) {
+        install(ContentNegotiation) {
+            json(Json {
+                ignoreUnknownKeys = true
+                explicitNulls = false
+            })
+        }
+
+        install(HttpTimeout) {
+            connectTimeoutMillis = HttpTimeout.INFINITE_TIMEOUT_MS
+        }
+    }
+
+    val response: HttpResponse = client.get("https://maps.googleapis.com/maps/api/geocode/json?address=$location&key=AIzaSyCB-_ig_v-K3XviVi6pM3CO87s6pwLIFp8")
+    client.close()
+
+    return if (response.status.value in 200..299) {
+        val data = response.body<LocationData>()
+        data.results[0].geometry.location
+    } else {
+        null
+    }
+}
 
 /**
  * This function retrieves the directions data from the Google Routes API.
